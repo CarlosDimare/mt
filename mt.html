@@ -2,53 +2,83 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>MamirTube</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #0f0f0f; color: #ffffff; font-family: 'Inter', sans-serif; overflow: hidden; }
+        body { background-color: #0f0f0f; color: #ffffff; font-family: 'Inter', sans-serif; overflow: hidden; overscroll-behavior-y: contain; }
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        
         .playlist-active { border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.1); }
         .playing-indicator { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block; margin-right: 6px; box-shadow: 0 0 8px #ef4444; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { transform: scale(0.9); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.6; } 100% { transform: scale(0.9); opacity: 1; } }
-        .chapter-btn:disabled { opacity: 0.2; cursor: not-allowed; filter: grayscale(1); }
+        
+        /* Mobile Overlay Logic */
+        @media (max-width: 1023px) {
+            #sidePanel {
+                position: fixed;
+                top: 0;
+                right: -100%;
+                width: 100%;
+                height: 100%;
+                z-index: 100;
+                transition: right 0.3s ease-in-out;
+            }
+            #sidePanel.active {
+                right: 0;
+            }
+        }
+
+        /* Prevent zooming on mobile inputs */
+        input[type="text"] { font-size: 16px !important; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
     <!-- Barra Superior -->
-    <nav class="shrink-0 bg-[#0f0f0f] border-b border-white/5 px-6 py-3 z-50">
-        <div class="flex items-center justify-between gap-8">
-            <div class="flex items-center space-x-2 cursor-pointer" onclick="window.location.reload()">
+    <nav class="shrink-0 bg-[#0f0f0f] border-b border-white/5 px-4 py-3 z-50">
+        <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center space-x-2 cursor-pointer shrink-0" onclick="window.location.reload()">
                 <div class="bg-red-600 p-1.5 rounded-lg">
                     <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
                 </div>
-                <h1 class="text-lg font-black tracking-tighter">MAMIR<span class="text-red-600">TUBE</span></h1>
+                <h1 class="text-lg font-black tracking-tighter hidden xs:block">MAMIR<span class="text-red-600">TUBE</span></h1>
             </div>
 
-            <div class="flex flex-1 max-w-xl">
-                <input type="text" id="searchInput" placeholder="Álbumes, canciones o artistas..." class="w-full bg-[#1a1a1a] border border-white/10 rounded-l-full py-2 px-5 focus:outline-none focus:border-red-600 text-sm">
-                <button onclick="buscarVideos()" class="bg-white/5 border border-l-0 border-white/10 px-6 rounded-r-full hover:bg-white/10">
-                    <svg xmlns="http://www.w3.org/2000/center" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            <div class="flex flex-1 max-w-xl relative">
+                <input type="text" id="searchInput" placeholder="Buscar..." class="w-full bg-[#1a1a1a] border border-white/10 rounded-full py-2 px-5 pr-12 focus:outline-none focus:border-red-600 text-sm">
+                <button onclick="buscarVideos()" class="absolute right-0 top-0 h-full px-4 text-gray-400 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/center" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </button>
             </div>
+
+            <!-- Botón de Lista para Móviles -->
+            <button onclick="toggleSidePanel()" class="lg:hidden p-2 bg-white/5 rounded-lg border border-white/10">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
         </div>
     </nav>
 
-    <div class="flex flex-1 overflow-hidden">
-        <!-- Panel Izquierdo -->
-        <main class="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[#0a0a0a]">
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- Panel Izquierdo (Resultados) -->
+        <main class="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar bg-[#0a0a0a]">
             <div id="statusArea" class="flex flex-col items-center justify-center py-20 text-center">
                 <h2 id="statusMessage" class="text-gray-500 font-medium">Busca música para empezar...</h2>
             </div>
-            <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+            <div id="resultsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6"></div>
         </main>
 
-        <!-- Panel Derecho -->
-        <aside class="w-80 lg:w-[420px] bg-[#0f0f0f] border-l border-white/5 flex flex-col shrink-0">
+        <!-- Panel Derecho (Reproductor y Lista) -->
+        <aside id="sidePanel" class="w-full lg:w-[380px] xl:w-[420px] bg-[#0f0f0f] border-l border-white/5 flex flex-col shrink-0 overflow-hidden">
+            
+            <!-- Botón Cerrar Panel (Solo Móvil) -->
+            <button onclick="toggleSidePanel()" class="lg:hidden absolute top-4 right-4 z-[110] p-2 bg-black/50 backdrop-blur-md rounded-full border border-white/20">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
             <!-- Reproductor Fijo -->
             <div id="playerSection" class="bg-black shrink-0 shadow-2xl z-10">
                 <div id="player-container" class="aspect-video w-full bg-black flex items-center justify-center">
@@ -56,33 +86,32 @@
                 </div>
                 
                 <div class="p-4 bg-[#121212] border-b border-white/10">
-                    <div class="flex items-center justify-between gap-4">
-                        <div class="flex items-center gap-1">
-                            <button onclick="prevVideo()" title="Anterior" class="p-2 text-gray-400 hover:text-white"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
+                    <div class="flex flex-col gap-3">
+                        <div class="flex items-center justify-between">
+                            <h2 id="currentVideoTitle" class="text-xs font-black text-gray-300 truncate max-w-[80%] uppercase tracking-tighter italic">Selecciona un video</h2>
+                            <span id="playingDot" class="hidden playing-indicator"></span>
+                        </div>
+                        
+                        <div class="flex items-center justify-center gap-4">
+                            <button onclick="prevVideo()" class="p-3 text-gray-400 hover:text-white"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg></button>
                             
-                            <!-- CONTROLES DE CAPÍTULOS -->
-                            <div id="chapterControls" class="flex items-center bg-white/5 rounded-full px-2 py-1 mx-1 border border-white/5 hidden">
-                                <button onclick="navigateChapter('prev')" id="prevChapterBtn" title="Capítulo Anterior" class="chapter-btn p-1.5 text-red-500 hover:bg-white/5 rounded-full">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
-                                </button>
-                                <div class="w-[1px] h-4 bg-white/10 mx-1"></div>
-                                <button onclick="navigateChapter('next')" id="nextChapterBtn" title="Siguiente Capítulo" class="chapter-btn p-1.5 text-red-500 hover:bg-white/5 rounded-full">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
-                                </button>
+                            <!-- Controles Capítulos Compactos -->
+                            <div id="chapterControls" class="flex items-center bg-white/5 rounded-full px-2 py-1 border border-white/10 hidden">
+                                <button onclick="navigateChapter('prev')" class="p-2 text-red-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg></button>
+                                <button onclick="navigateChapter('next')" class="p-2 text-red-500"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
                             </div>
 
-                            <button id="playPauseBtn" onclick="togglePlayback()" class="bg-white text-black p-2.5 rounded-full hover:scale-105 transition-transform"><svg id="playIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
-                            <button onclick="nextVideo()" title="Siguiente" class="p-2 text-gray-400 hover:text-white"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
+                            <button id="playPauseBtn" onclick="togglePlayback()" class="bg-white text-black p-3.5 rounded-full hover:scale-105 transition-transform"><svg id="playIcon" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+                            <button onclick="nextVideo()" class="p-3 text-gray-400 hover:text-white"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></button>
                         </div>
-                        <h2 id="currentVideoTitle" class="text-[11px] font-black text-gray-300 truncate max-w-[150px] uppercase tracking-tighter italic">--</h2>
                     </div>
                 </div>
             </div>
 
             <!-- Tabs -->
             <div class="flex border-b border-white/5 bg-[#0f0f0f]">
-                <button onclick="setTab('playlist')" id="tab-playlist" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 border-red-600">Lista</button>
-                <button onclick="setTab('info')" id="tab-info" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 border-transparent text-gray-500">Info / Capítulos</button>
+                <button onclick="setTab('playlist')" id="tab-playlist" class="flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 border-red-600">Lista</button>
+                <button onclick="setTab('info')" id="tab-info" class="flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 border-transparent text-gray-500">Info / Tracks</button>
             </div>
 
             <!-- Contenido Tabs -->
@@ -94,36 +123,34 @@
     </div>
 
     <script>
-        // Configuración de API
         const apiKey = "AIzaSyAA3nuA5acrYm0TMRGEW5d207FEt3R5bo8"; 
-        
         let player = null;
         let playlist = JSON.parse(localStorage.getItem('mtube_v3')) || [];
         let chapters = [];
         let currentVideoId = null;
 
-        // Función de utilidad para Fetch con reintentos y retroceso exponencial
+        function toggleSidePanel() {
+            const panel = document.getElementById('sidePanel');
+            panel.classList.toggle('active');
+        }
+
         async function fetchWithRetry(url, options = {}, retries = 5) {
             for (let i = 0; i < retries; i++) {
                 try {
                     const response = await fetch(url, options);
                     if (response.ok) return await response.json();
-                    
                     if (response.status === 403 || response.status === 429) {
-                        const errorData = await response.json();
-                        console.error("YouTube API Error:", errorData);
-                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+                        await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
                         continue;
                     }
                     throw new Error(`HTTP Error: ${response.status}`);
                 } catch (err) {
                     if (i === retries - 1) throw err;
-                    await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+                    await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
                 }
             }
         }
 
-        // Cargar API de YouTube
         const tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         const firstScriptTag = document.getElementsByTagName('script')[0];
@@ -135,24 +162,21 @@
                 width: '100%',
                 videoId: '',
                 playerVars: { 
-                    'autoplay': 0, 
-                    'modestbranding': 1, 
-                    'rel': 0,
-                    'origin': window.location.origin,
-                    'enablejsapi': 1
+                    'autoplay': 0, 'modestbranding': 1, 'rel': 0, 'enablejsapi': 1, 'playsinline': 1
                 },
-                events: {
-                    'onStateChange': onPlayerStateChange
-                }
+                events: { 'onStateChange': onPlayerStateChange }
             });
         }
 
         function onPlayerStateChange(event) {
             const icon = document.getElementById('playIcon');
+            const dot = document.getElementById('playingDot');
             if (event.data == YT.PlayerState.PLAYING) {
                 icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                dot.classList.remove('hidden');
             } else {
                 icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                dot.classList.add('hidden');
             }
             if (event.data == YT.PlayerState.ENDED) nextVideo();
         }
@@ -160,52 +184,39 @@
         async function buscarVideos() {
             const q = document.getElementById('searchInput').value;
             if(!q) return;
-            
-            const statusMessage = document.getElementById('statusMessage');
-            statusMessage.innerText = "Buscando en YouTube...";
+            document.getElementById('statusMessage').innerText = "Buscando...";
             
             try {
-                const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=20&q=${encodeURIComponent(q)}&type=video&key=${apiKey}`;
+                const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=25&q=${encodeURIComponent(q)}&type=video&key=${apiKey}`;
                 const data = await fetchWithRetry(url);
-                
-                if (data && data.items) {
-                    renderResults(data.items);
-                } else {
-                    statusMessage.innerText = "No se encontraron resultados.";
-                }
+                renderResults(data.items);
             } catch (error) {
-                console.error("Error al buscar videos:", error);
-                statusMessage.innerText = "Error: Verifica tu API Key de YouTube.";
+                document.getElementById('statusMessage').innerText = "Error de conexión.";
             }
         }
 
         function renderResults(items) {
             const grid = document.getElementById('resultsGrid');
             const statusArea = document.getElementById('statusArea');
-            
             if (!items || items.length === 0) {
                 statusArea.classList.remove('hidden');
-                document.getElementById('statusMessage').innerText = "No se encontraron resultados.";
                 grid.innerHTML = "";
                 return;
             }
-
             statusArea.classList.add('hidden');
             grid.innerHTML = items.map(v => {
-                if (!v.id || !v.id.videoId) return '';
-                // Escapar comillas simples para el título en base64
                 const b64Title = btoa(unescape(encodeURIComponent(v.snippet.title)));
                 return `
-                <div class="bg-[#1a1a1a] rounded-xl overflow-hidden group border border-white/5 hover:border-red-600 transition-all p-2">
+                <div class="bg-[#1a1a1a] rounded-xl overflow-hidden border border-white/5 active:scale-95 transition-transform p-2">
                     <div class="relative aspect-video rounded-lg overflow-hidden cursor-pointer" onclick="playNow('${v.id.videoId}')">
                         <img src="${v.snippet.thumbnails.medium.url}" class="w-full h-full object-cover">
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                             <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <div class="absolute inset-0 bg-black/20 flex items-center justify-center">
+                             <div class="bg-red-600 p-2 rounded-full shadow-lg"><svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
                         </div>
                     </div>
                     <div class="p-2">
-                        <h3 class="text-[11px] font-bold text-gray-200 line-clamp-2 leading-tight">${v.snippet.title}</h3>
-                        <button onclick="addToPlaylist('${v.id.videoId}', '${b64Title}', '${v.snippet.thumbnails.default.url}')" class="mt-2 w-full py-2 bg-white/5 hover:bg-white/10 rounded text-[9px] font-black uppercase">+ Añadir</button>
+                        <h3 class="text-[11px] font-bold text-gray-200 line-clamp-2 min-h-[32px]">${v.snippet.title}</h3>
+                        <button onclick="addToPlaylist('${v.id.videoId}', '${b64Title}', '${v.snippet.thumbnails.default.url}')" class="mt-2 w-full py-3 bg-white/5 active:bg-red-600/20 rounded-lg text-[10px] font-black uppercase tracking-widest">+ Agregar</button>
                     </div>
                 </div>
             `}).join('');
@@ -213,141 +224,97 @@
 
         async function playNow(id) {
             currentVideoId = id;
-            if(player && player.loadVideoById) {
-                player.loadVideoById(id);
-            }
+            if(player && player.loadVideoById) player.loadVideoById(id);
             
+            // Cerrar panel en móvil al elegir video (opcional, mejor dejarlo si viene de resultados)
+            if(window.innerWidth < 1024) document.getElementById('sidePanel').classList.add('active');
+
             try {
-                const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id=${id}&key=${apiKey}`;
+                const url = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${id}&key=${apiKey}`;
                 const data = await fetchWithRetry(url);
-                
-                if (data.items && data.items.length > 0) {
+                if (data.items?.length > 0) {
                     const v = data.items[0];
                     document.getElementById('currentVideoTitle').innerText = v.snippet.title;
-                    
-                    // Extraer capítulos de la descripción
                     chapters = parseChapters(v.snippet.description);
-                    const ctrl = document.getElementById('chapterControls');
-                    
-                    if(chapters.length > 0) {
-                        ctrl.classList.remove('hidden');
-                    } else {
-                        ctrl.classList.add('hidden');
-                    }
-                    
+                    document.getElementById('chapterControls').classList.toggle('hidden', chapters.length === 0);
                     renderInfo(v);
                 }
-            } catch (error) {
-                console.error("Error al cargar detalles del video:", error);
-            }
+            } catch (e) {}
             updatePlaylistUI();
         }
 
         function parseChapters(desc) {
-            if (!desc) return [];
-            const lines = desc.split('\n');
             const found = [];
-            
-            lines.forEach(line => {
-                // Regex para capturar formatos como 00:00, 0:00, 1:22:33
+            if (!desc) return found;
+            desc.split('\n').forEach(line => {
                 const match = line.match(/(\d{1,2}:\d{2}(?::\d{2})?)/);
                 if(match) {
-                    const timeStr = match[1];
-                    const parts = timeStr.split(':').reverse();
+                    const parts = match[1].split(':').reverse();
                     let sec = parseInt(parts[0]) + (parseInt(parts[1]) * 60) + (parts[2] ? parseInt(parts[2]) * 3600 : 0);
-                    let title = line.replace(timeStr, "").replace(/^[-\s.:]+/, "").trim();
-                    found.push({ sec, timeStr, title });
+                    found.push({ sec, timeStr: match[1], title: line.replace(match[1], "").replace(/^[-\s.:]+/, "").trim() });
                 }
             });
-            // Eliminar duplicados de tiempo y ordenar
-            const unique = Array.from(new Map(found.map(item => [item.sec, item])).values());
-            return unique.sort((a,b) => a.sec - b.sec);
+            return found.sort((a,b) => a.sec - b.sec);
         }
 
         function navigateChapter(dir) {
-            if(!player || typeof player.getCurrentTime !== 'function' || chapters.length === 0) return;
-            const currentTime = player.getCurrentTime();
-            
+            const now = player.getCurrentTime();
             if(dir === 'next') {
-                const next = chapters.find(c => c.sec > currentTime + 2);
+                const next = chapters.find(c => c.sec > now + 2);
                 if(next) player.seekTo(next.sec, true);
             } else {
-                // Buscar el capítulo anterior (permitiendo un margen de 3s para volver al inicio del actual o al anterior real)
-                const prevs = chapters.filter(c => c.sec < currentTime - 3);
-                if(prevs.length > 0) {
-                    player.seekTo(prevs[prevs.length - 1].sec, true);
-                } else {
-                    player.seekTo(0, true);
-                }
+                const prev = chapters.filter(c => c.sec < now - 3).pop();
+                player.seekTo(prev ? prev.sec : 0, true);
             }
         }
 
         function renderInfo(v) {
             const target = document.getElementById('infoTarget');
-            let chapHtml = '';
-            if(chapters.length > 0) {
-                chapHtml = `
-                    <div class="mt-4 space-y-1">
-                        <p class="text-[10px] font-black text-red-500 uppercase mb-2">Tracklist Detectado</p>
-                        ${chapters.map(c => `
-                            <div onclick="player.seekTo(${c.sec}, true)" class="flex gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer border border-transparent hover:border-white/10 group">
-                                <span class="font-mono text-[10px] text-gray-500 group-hover:text-red-500">${c.timeStr}</span>
-                                <span class="text-[11px] font-medium text-gray-300 truncate">${c.title || 'Sección'}</span>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
-            }
-
             target.innerHTML = `
                 <h2 class="text-sm font-black mb-1">${v.snippet.title}</h2>
-                <p class="text-[10px] text-gray-500 uppercase font-bold mb-4">${v.snippet.channelTitle}</p>
-                <div class="p-3 bg-white/5 rounded-xl border border-white/5 text-[11px] text-gray-400 max-h-40 overflow-y-auto custom-scrollbar">
-                    ${v.snippet.description.replace(/\n/g, '<br>')}
-                </div>
-                ${chapHtml}
+                <p class="text-[10px] text-red-500 uppercase font-black mb-4">${v.snippet.channelTitle}</p>
+                <div class="p-3 bg-white/5 rounded-xl text-[11px] text-gray-400 mb-4">${v.snippet.description.substring(0,200)}...</div>
+                ${chapters.length > 0 ? `<p class="text-[10px] font-black uppercase mb-2">Tracklist</p>` + chapters.map(c => `
+                    <div onclick="player.seekTo(${c.sec}, true)" class="flex gap-3 p-3 hover:bg-white/5 rounded-lg cursor-pointer border border-white/5 mb-1">
+                        <span class="font-mono text-[10px] text-red-500">${c.timeStr}</span>
+                        <span class="text-[11px] font-bold text-gray-300 truncate">${c.title || 'Track'}</span>
+                    </div>
+                `).join('') : ''}
             `;
         }
 
         function togglePlayback() {
-            if(!player || typeof player.getPlayerState !== 'function') return;
             const state = player.getPlayerState();
-            if(state == YT.PlayerState.PLAYING) player.pauseVideo();
-            else player.playVideo();
+            state == 1 ? player.pauseVideo() : player.playVideo();
         }
 
         function setTab(tab) {
-            document.getElementById('tab-playlist').className = `flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 ${tab==='playlist'?'border-red-600 text-white':'border-transparent text-gray-500'}`;
-            document.getElementById('tab-info').className = `flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 ${tab==='info'?'border-red-600 text-white':'border-transparent text-gray-500'}`;
+            document.getElementById('tab-playlist').className = `flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 ${tab==='playlist'?'border-red-600 text-white':'border-transparent text-gray-500'}`;
+            document.getElementById('tab-info').className = `flex-1 py-4 text-[10px] font-black uppercase tracking-widest border-b-2 ${tab==='info'?'border-red-600 text-white':'border-transparent text-gray-500'}`;
             document.getElementById('content-playlist').classList.toggle('hidden', tab !== 'playlist');
             document.getElementById('content-info').classList.toggle('hidden', tab !== 'info');
         }
 
         function addToPlaylist(id, titleB64, thumb) {
             if(playlist.some(x => x.id === id)) return;
-            try {
-                const title = decodeURIComponent(escape(atob(titleB64)));
-                playlist.push({ id, title, thumb });
-                localStorage.setItem('mtube_v3', JSON.stringify(playlist));
-                updatePlaylistUI();
-            } catch(e) { console.error("Error al añadir a lista:", e); }
+            playlist.push({ id, title: decodeURIComponent(escape(atob(titleB64))), thumb });
+            localStorage.setItem('mtube_v3', JSON.stringify(playlist));
+            updatePlaylistUI();
         }
 
         function updatePlaylistUI() {
             const container = document.getElementById('content-playlist');
             if (playlist.length === 0) {
-                container.innerHTML = `<p class="text-center text-gray-600 text-[10px] py-10 uppercase font-black">Tu lista está vacía</p>`;
+                container.innerHTML = `<p class="text-center text-gray-600 text-[10px] py-10 uppercase font-black">Lista vacía</p>`;
                 return;
             }
             container.innerHTML = playlist.map(v => `
-                <div class="flex gap-3 p-2 rounded-xl bg-[#1a1a1a] border border-white/5 group relative ${currentVideoId === v.id ? 'playlist-active' : ''}">
+                <div class="flex gap-3 p-3 rounded-xl bg-[#1a1a1a] border border-white/5 relative ${currentVideoId === v.id ? 'playlist-active shadow-lg' : ''}">
                     <img src="${v.thumb}" class="w-16 h-10 object-cover rounded-lg cursor-pointer" onclick="playNow('${v.id}')">
-                    <div class="flex-1 min-w-0">
-                        <h4 class="text-[10px] font-bold text-gray-300 truncate cursor-pointer" onclick="playNow('${v.id}')">
-                            ${currentVideoId === v.id ? '<span class="playing-indicator"></span>' : ''} ${v.title}
-                        </h4>
+                    <div class="flex-1 min-w-0 pr-8" onclick="playNow('${v.id}')">
+                        <h4 class="text-[10px] font-bold text-gray-300 truncate">${v.title}</h4>
                     </div>
-                    <button onclick="removeItem('${v.id}')" class="text-gray-700 hover:text-red-500 transition-colors"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
+                    <button onclick="removeItem('${v.id}')" class="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-600 active:text-red-500"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg></button>
                 </div>
             `).join('');
         }
@@ -369,8 +336,6 @@
         }
 
         document.getElementById('searchInput').addEventListener('keypress', e => e.key === 'Enter' && buscarVideos());
-        
-        // Inicialización
         updatePlaylistUI();
     </script>
 </body>
